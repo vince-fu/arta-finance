@@ -37,6 +37,7 @@ import {
   minimumDue,
   money,
   money0,
+  pa,
   recommend,
   scenario,
   type Scenario,
@@ -90,7 +91,7 @@ export function CardHomeScreen() {
       <ScrollArea className="pt-5">
         <Eyebrow>Current balance</Eyebrow>
         <p className="tabular mt-2 text-[40px] font-semibold leading-none text-ink">
-          ${used.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+          {money(used)}
         </p>
         <p className="tabular mt-2 text-[15px] text-positive">
           {money0(available)} <span className="text-ink-muted">available to spend</span>
@@ -136,7 +137,11 @@ export function CardHomeScreen() {
         {/* --- Proactive Smart Payoff insight (Flow 2's entry into the deep
             moment). Proactive but dismissible; always carries an action. --- */}
         {paymentScheduled === null ? (
-          <ProactiveInsight cash={cash} onOpen={() => go('statement')} agentName={t.agentName} />
+          <ProactiveInsight
+            cash={cash}
+            onOpen={() => go('statement')}
+            agentName={`${t.agentName} · ${t.agentRole}`}
+          />
         ) : (
           <Surface className="mt-6 border-positive/25 bg-positive/[0.06]">
             <div className="flex items-start gap-3">
@@ -307,7 +312,7 @@ export function StatementScreen() {
           due {statement.dueDate} · in {statement.daysUntilDue} days
         </p>
 
-        {/* 2 · Advisor reasoning, in real dollars */}
+        {/* 2 · The agent's reasoning, in real dollars */}
         <div className="mt-6 rounded-md border border-white/15 bg-white/[0.05] p-4">
           <div className="flex items-center gap-2 text-ink-muted">
             <Sparkle size={14} weight="fill" />
@@ -323,7 +328,7 @@ export function StatementScreen() {
               tone="positive"
             />
             <ReasonRow
-              label={`Yield given up (${(cashAccount.yieldApy * 100).toFixed(1)}% on ${cashName()})`}
+              label={`Interest given up (${pa(cashAccount.yieldPa)} on ${cashName()})`}
               value={`−${money(rec.scenario.forgone)}`}
             />
             <div className="flex items-baseline justify-between border-t border-white/10 pt-2.5">
@@ -391,8 +396,8 @@ export function StatementScreen() {
         </div>
 
         <div className="mt-7 space-y-3">
-          <StatFooterBar label="APR" value={`${(cardTerms.apr * 100).toFixed(2)}%`} />
-          <StatFooterBar label={`${cashName()} yield`} value={`${(cashAccount.yieldApy * 100).toFixed(1)}% APY`} />
+          <StatFooterBar label="Interest rate (EIR)" value={pa(cardTerms.eir)} />
+          <StatFooterBar label={`${cashName()} interest`} value={pa(cashAccount.yieldPa)} />
           <StatFooterBar label={cashName()} value={money(cash)} />
         </div>
       </ScrollArea>
@@ -429,10 +434,10 @@ export function ScenarioBreakdown({ sc }: { sc: Scenario }) {
         <ReasonRow label="You pay now" value={money(sc.payment)} />
         <ReasonRow label="Balance carried" value={money(sc.carried)} />
         <ReasonRow
-          label={`Interest next cycle (${(cardTerms.apr * 100).toFixed(2)}% APR)`}
+          label={`Interest next cycle (EIR ${pa(cardTerms.eir)})`}
           value={sc.interest > 0 ? `−${money(sc.interest)}` : money(0)}
         />
-        <ReasonRow label="Yield given up" value={sc.forgone > 0 ? `−${money(sc.forgone)}` : money(0)} />
+        <ReasonRow label="Cash interest given up" value={sc.forgone > 0 ? `−${money(sc.forgone)}` : money(0)} />
         <div className="flex items-baseline justify-between border-t border-white/10 pt-2.5">
           <span className="text-[13px] font-semibold text-ink">Cost of this choice</span>
           <AnimatePresence mode="popLayout">
@@ -535,12 +540,20 @@ export function answerFollowUp(question: string, cash = cashAccount.balance): st
     if (!Number.isNaN(n) && n > 0) amount = dollars[2] ? n * 1000 : n
   }
 
+  if (/\beir\b|interest rate|\bapr\b/.test(q) && amount === null) {
+    return (
+      `EIR — effective interest rate — is the yearly cost of carrying a balance with compounding ` +
+      `included, which is how Singapore cards quote interest. This card's EIR is ${pa(cardTerms.eir)}, and you ` +
+      `only pay it on what you don't clear by the due date — pay the full statement balance and it costs nothing.`
+    )
+  }
+
   if (/invest|yield|keep the cash|why not/.test(q) && amount === null) {
     return (
-      `Because the card charges ${(cardTerms.apr * 100).toFixed(2)}% and your ${cashName()} pays ` +
-      `${(cashAccount.yieldApy * 100).toFixed(1)}%. Every dollar left on the card costs about ` +
-      `${(cardTerms.apr * 100 - cashAccount.yieldApy * 100).toFixed(1)}c a year more than it earns. ` +
-      `Keeping cash invested only wins when the yield beats the APR — it doesn't here, and it very rarely does on a credit card.`
+      `Because the card's EIR is ${pa(cardTerms.eir)} and your ${cashName()} earns ` +
+      `${pa(cashAccount.yieldPa)} — every dollar left on the card costs about ` +
+      `${(cardTerms.eir * 100 - cashAccount.yieldPa * 100).toFixed(1)} cents a year more than it earns. ` +
+      `Keeping cash invested only wins when its interest beats the card's EIR — it doesn't here, and it very rarely does on a credit card.`
     )
   }
 
@@ -567,15 +580,15 @@ export function answerFollowUp(question: string, cash = cashAccount.balance): st
   if (amount === 0) {
     return (
       `Paying nothing isn't an option — the ${money(minimumDue)} minimum is due on ${statement.dueDate}, ` +
-      `and missing it costs a ${money(cardTerms.lateFee)} late fee on top of about ` +
-      `${money(interestOn(statement.balance))} of interest. It would also mark your credit file.`
+      `and missing it costs a ${money(cardTerms.lateFee)} late payment fee on top of about ` +
+      `${money(interestOn(statement.balance))} of interest. It would also be recorded on your Credit Bureau Singapore report.`
     )
   }
 
   return (
     `Paying ${money(amount)} leaves ${money(sc.carried)} on the card. That accrues about ` +
     `${money(sc.interest)} of interest over the next cycle, and the ${money(amount)} you move out of ` +
-    `${cashName()} gives up ${money(sc.forgone)} of yield — ${money(sc.totalCost)} in total. ` +
+    `${cashName()} gives up ${money(sc.forgone)} of interest — ${money(sc.totalCost)} in total. ` +
     `Paying in full costs ${money(full.totalCost)}, so this option is ` +
     `${money(sc.totalCost - full.totalCost)} more expensive.`
   )
@@ -635,7 +648,7 @@ export function LifecycleScreen() {
           <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
             Two of the five stages are designed in full — pre-qualification in the application, and
             Smart Payoff at the statement. Every card could ship spend categorisation. Only a wealth
-            platform can compare your APR against your own yield.
+            platform can compare your card's EIR against your own cash interest.
           </p>
         </Surface>
 

@@ -1,12 +1,13 @@
 import { CheckCircle, Lock, PencilSimple, Sparkle } from '@phosphor-icons/react'
 import { useApp } from '../appState'
+import { CardArt } from '../components/CardArt'
 import { ScrollArea, StatusBar, TabNavRow } from '../components/chrome'
 import { AllocationBar, Eyebrow, PillButton, Surface } from '../components/primitives'
-import { THEMES, limits, statement, type Theme } from '../lib/mockData'
-import { money, money0 } from '../lib/payoff'
+import { THEMES, cardTerms, limits, statement, type Theme } from '../lib/mockData'
+import { money, money0, pa } from '../lib/payoff'
 
 /* ==========================================================================
-   15 · BRAND-IN-A-BOX — Challenge B proof
+   BRAND-IN-A-BOX — Challenge B proof
 
    The two panels below are the SAME components rendered twice. The only
    difference between them is `data-theme`, which re-binds the semantic
@@ -15,7 +16,7 @@ import { money, money0 } from '../lib/payoff'
    ========================================================================== */
 
 export function BrandInABoxScreen() {
-  const { back, theme, setTheme } = useApp()
+  const { back, theme, setTheme, cardFinish } = useApp()
 
   return (
     <div className="flex h-full flex-col bg-bg">
@@ -34,8 +35,9 @@ export function BrandInABoxScreen() {
           any brand
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-          Both panels below are the same React components. The only thing that changes between them
-          is which theme the semantic tokens resolve to.
+          Both panels below are the same React components — including the{' '}
+          {cardFinish === 'black' ? 'Black' : 'Iridescent'} card you chose. The only thing that
+          changes between them is which theme the semantic tokens resolve to.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
@@ -53,7 +55,7 @@ export function BrandInABoxScreen() {
           {[
             ['Brand accent & gradients', 'accent/brand, gradient/* — 11 semantic tokens'],
             ['Surface ramp', 'surface/bg, surface/card, surface/input'],
-            ['Logo mark & card art', 'image assets, referenced by token'],
+            ['Logo & card base colour', 'wordmark asset, --card-metal token'],
             ['Product & agent naming', 'content tokens, not layout'],
           ].map(([a, b]) => (
             <div key={a} className="flex items-start gap-3 px-4 py-3">
@@ -69,10 +71,11 @@ export function BrandInABoxScreen() {
         <Eyebrow className="mb-3 mt-6">What they cannot</Eyebrow>
         <div className="divide-y divide-white/[0.07] overflow-hidden rounded-md border border-white/[0.08] bg-card">
           {[
-            ['Disclosure content', 'Key facts, APR copy, declaration text'],
+            ['Disclosure content', 'Key facts, EIR copy, declaration text'],
             ['Decisioning & limits', 'Eligibility rules, affordability logic'],
             ['Security messaging', 'The Ask With Care module and its claims'],
             ['Step order & layout', 'Trust sequencing is a platform decision'],
+            ['The Arta ring signature', 'Iridescent rings stay on every partner card'],
           ].map(([a, b]) => (
             <div key={a} className="flex items-start gap-3 px-4 py-3">
               <Lock size={16} weight="fill" className="mt-[2px] shrink-0 text-ink-faint" />
@@ -131,6 +134,7 @@ function MiniShell({ theme, children }: { theme: Theme; children: React.ReactNod
 }
 
 function MiniCardHome({ theme }: { theme: Theme }) {
+  const { cardFinish, kyc } = useApp()
   const used = statement.currentBalance
   const available = limits.approved - used
   return (
@@ -148,19 +152,26 @@ function MiniCardHome({ theme }: { theme: Theme }) {
           ]}
         />
       </div>
-      <div
-        style={{ backgroundImage: 'var(--gradient-premium)' }}
-        className="grain relative mt-3 aspect-[1.586/1] overflow-hidden rounded-sm p-2.5"
-      >
-        <span className="hero-type relative z-10 text-[15px] font-semibold text-white">
-          {THEMES[theme].mark}
-        </span>
+      {/* The real card art, the same finish chosen at Stage 1, scaled from its
+          342px width to fit the panel. Each theme sets its own base colour and
+          wordmark; the rings keep Arta's tones — the same card, rebranded. */}
+      <div className="relative mt-3 h-[88px] w-full overflow-hidden rounded-[8px]">
+        <div className="absolute left-0 top-0 w-[342px] origin-top-left" style={{ transform: 'scale(0.4064)' }}>
+          <CardArt
+            theme={theme}
+            finish={cardFinish}
+            sheen={false}
+            holder={kyc[0].value.toUpperCase()}
+            last4="4429"
+          />
+        </div>
       </div>
     </MiniShell>
   )
 }
 
 function MiniConfirm({ theme }: { theme: Theme }) {
+  const { kyc } = useApp()
   return (
     <MiniShell theme={theme}>
       <p className="hero-type text-[15px] leading-tight text-ink">we already know you</p>
@@ -170,8 +181,8 @@ function MiniConfirm({ theme }: { theme: Theme }) {
       </div>
       <div className="mt-2.5 space-y-2 rounded-sm border border-white/[0.08] bg-card p-2.5">
         {[
-          ['Legal name', 'Vince Foo'],
-          ['Tax residence', 'US · Singapore'],
+          ['Legal name', kyc[0].value],
+          ['Tax residence', kyc.find((f) => f.id === 'tax')?.value ?? ''],
         ].map(([l, v]) => (
           <div key={l}>
             <p className="eyebrow text-[8px] text-ink-faint">{l}</p>
@@ -181,7 +192,7 @@ function MiniConfirm({ theme }: { theme: Theme }) {
       </div>
       {/* Identical compliance content in both themes — never a token. */}
       <p className="mt-2 text-[9px] leading-snug text-ink-faint">
-        APR 24.99% variable. See key facts.
+        EIR {pa(cardTerms.eir)} — see key facts.
       </p>
       <div className="mt-2.5 rounded-pill bg-white py-1.5 text-center text-[10px] font-semibold text-black">
         Confirm

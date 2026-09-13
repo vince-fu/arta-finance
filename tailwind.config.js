@@ -19,9 +19,12 @@ export default {
         warning: 'rgb(var(--accent-warning) / <alpha-value>)',
         hairline: 'rgb(var(--border-subtle) / <alpha-value>)',
       },
+      // TWK Lausanne (Weltkern) is the brand face. It's a licensed font and is
+      // deliberately NOT bundled: it renders wherever it's installed locally,
+      // and everyone else gets the open fallbacks listed after it.
       fontFamily: {
-        display: ['Quicksand', 'ui-rounded', 'system-ui', 'sans-serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['"TWK Lausanne"', 'Quicksand', 'ui-rounded', 'system-ui', 'sans-serif'],
+        sans: ['"TWK Lausanne"', 'Inter', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         xs: 'var(--radius-xs)',

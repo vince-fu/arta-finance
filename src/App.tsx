@@ -1,17 +1,15 @@
+import { Fragment } from 'react'
 import { AppProvider, SCREENS, useApp, type Decision, type ScreenId } from './appState'
 import { AgentProvider, ChatSurface, msg, useAgent } from './components/agent'
 import { VIEWPORT } from './components/chrome'
 import {
   ConfirmScreen,
-  DeclarationScreen,
   DecisionScreen,
   EntryScreen,
+  GetStartedScreen,
   IncomeScreen,
-  KeyFactsScreen,
-  LimitScreen,
-  PreviewScreen,
   ReviewScreen,
-  SettlementScreen,
+  SetupScreen,
 } from './screens/flow1'
 import { CardHomeScreen, LifecycleScreen, StatementScreen, answerFollowUp } from './screens/flow2'
 import { BrandInABoxScreen } from './screens/BrandInABox'
@@ -19,33 +17,33 @@ import { THEMES } from './lib/mockData'
 import { cashAccount } from './lib/payoff'
 
 const SCREEN_LABELS: Record<ScreenId, string> = {
-  entry: '1 · Entry',
-  preview: '2 · No-Risk Preview',
-  confirm: '3 · Already Yours',
-  income: '4 · Ask With Care',
-  limit: '5 · Requested limit',
-  settlement: '6 · Settlement',
-  keyfacts: '7 · Plain as Day',
-  declaration: '8 · Declaration',
-  review: '9 · Review',
-  decision: '10 · Decision',
-  cardHome: '11 · Card Home',
-  statement: '12 · Smart Payoff',
-  lifecycle: '13 · Lifecycle map',
-  brandBox: '14 · Brand-in-a-Box',
+  entry: 'Entry',
+  getStarted: '1 · Get started',
+  confirm: '2 · Confirm your details',
+  income: '3 · Income & employment',
+  setup: '4 · Set up your card',
+  review: '5 · Review & sign',
+  decision: '6 · Decision',
+  cardHome: 'Card Home',
+  statement: 'Smart Payoff',
+  lifecycle: 'Lifecycle map',
+  brandBox: 'Brand-in-a-Box',
+}
+
+/** Group headings in the demo panel's screen list. */
+const GROUP_HEADINGS: Partial<Record<ScreenId, string>> = {
+  getStarted: 'Application · 6 stages',
+  cardHome: 'After approval',
 }
 
 function Screens() {
   const { screen } = useApp()
   switch (screen) {
     case 'entry': return <EntryScreen />
-    case 'preview': return <PreviewScreen />
+    case 'getStarted': return <GetStartedScreen />
     case 'confirm': return <ConfirmScreen />
     case 'income': return <IncomeScreen />
-    case 'limit': return <LimitScreen />
-    case 'settlement': return <SettlementScreen />
-    case 'keyfacts': return <KeyFactsScreen />
-    case 'declaration': return <DeclarationScreen />
+    case 'setup': return <SetupScreen />
     case 'review': return <ReviewScreen />
     case 'decision': return <DecisionScreen />
     case 'cardHome': return <CardHomeScreen />
@@ -63,7 +61,7 @@ function Agent() {
   return (
     <ChatSurface
       theme={theme}
-      suggestions={['What if I pay half now?', 'Why not keep the cash invested?', 'What is the APR?']}
+      suggestions={['What if I pay half now?', 'Why not keep the cash invested?', 'What does EIR mean?']}
       onSend={(text) => {
         push(msg('user', text))
         setTimeout(
@@ -137,15 +135,21 @@ function DemoPanel() {
       </p>
       <div className="mt-2 space-y-1">
         {SCREENS.map((s) => (
-          <button
-            key={s}
-            onClick={() => go(s)}
-            className={`block w-full rounded-lg px-2.5 py-1.5 text-left transition-colors ${
-              screen === s ? 'bg-neutral-900 text-white' : 'hover:bg-black/5'
-            }`}
-          >
-            {SCREEN_LABELS[s]}
-          </button>
+          <Fragment key={s}>
+            {GROUP_HEADINGS[s] && (
+              <p className="px-2.5 pb-0.5 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                {GROUP_HEADINGS[s]}
+              </p>
+            )}
+            <button
+              onClick={() => go(s)}
+              className={`block w-full rounded-lg px-2.5 py-1.5 text-left transition-colors ${
+                screen === s ? 'bg-neutral-900 text-white' : 'hover:bg-black/5'
+              }`}
+            >
+              {SCREEN_LABELS[s]}
+            </button>
+          </Fragment>
         ))}
       </div>
 
@@ -166,7 +170,7 @@ function DemoPanel() {
         ))}
       </div>
       <p className="mt-1.5 text-[11px] leading-snug text-neutral-500">
-        Also drives the “not eligible yet” preview outcome.
+        Also drives the “not eligible yet” outcome at Stage 1.
       </p>
 
       <div className="mt-5 flex items-center justify-between">
@@ -181,7 +185,7 @@ function DemoPanel() {
         <div>
           <p className="font-medium">Low cash balance</p>
           <p className="text-[11px] text-neutral-500">
-            {lowCash ? '$900' : `$${cashAccount.balance.toLocaleString()}`} in {THEMES[theme].cashName}
+            {lowCash ? 'S$900' : `S$${cashAccount.balance.toLocaleString()}`} in {THEMES[theme].cashName}
           </p>
         </div>
         <LightSwitch on={lowCash} onChange={setLowCash} />

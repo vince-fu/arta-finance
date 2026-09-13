@@ -9,7 +9,8 @@
   body {
     margin: 0;
     background: #E8E8EA; /* neutral desktop backdrop behind the phone frame */
-    font-family: 'Inter', system-ui, sans-serif;
+    /* TWK Lausanne first when installed locally (licensed, not bundled). */
+    font-family: 'TWK Lausanne', 'Inter', system-ui, sans-serif;
   }
   /* Tabular figures on every money value, so digits never jitter. */
   .tabular { font-variant-numeric: tabular-nums lining-nums; }
@@ -40,7 +41,7 @@
   }
 
   .hero-type {
-    font-family: 'Quicksand', ui-rounded, system-ui, sans-serif;
+    font-family: 'TWK Lausanne', 'Quicksand', ui-rounded, system-ui, sans-serif;
     font-weight: 500;
     text-transform: lowercase;
     letter-spacing: -0.015em;

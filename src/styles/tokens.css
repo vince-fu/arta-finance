@@ -133,8 +133,10 @@
   --gradient-calm:      linear-gradient(180deg, #123A31, #07100E);
   --gradient-premium:   linear-gradient(135deg, #0E4A3D 0%, #146B57 30%, #C9A227 68%, #E0BE55 100%);
 
-  --ring-1: #7FD8B8; --ring-2: #4FCF9A; --ring-3: #1B8F6F; --ring-4: #C9A227;
-  --ring-5: #C97F27; --ring-6: #E0BE55; --ring-7: #F2D98A;
+  /* Partner card: Meridian's own deep-emerald base. The ring pattern and the
+     wordmark keep Arta's iridescent tones (--ring-1…7 are not overridden) —
+     the platform signature that carries across every brand. */
+  --card-metal: linear-gradient(145deg, #22604F 0%, #0F3B31 38%, #072620 64%, #1A4C40 100%);
 
   --brand-name: 'Meridian Invest';
 }

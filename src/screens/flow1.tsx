@@ -12,11 +12,11 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react'
 
-import { useApp, type ScreenId } from '../appState'
+import { useApp, type CardFinish, type ScreenId } from '../appState'
 import { StepShell } from './StepShell'
 import { AgentBadge, msg, useAgent } from '../components/agent'
 import { KeyFactsCard, ReassuranceModule } from '../components/DisclosureCard'
-import { CardArt } from '../components/CardArt'
+import { ArtaLetterA, CardArt } from '../components/CardArt'
 import {
   Eyebrow,
   GradientPanel,
@@ -26,11 +26,32 @@ import {
   Surface,
 } from '../components/primitives'
 import { ActionBar, Checkbox, Field, ScrollArea, StatusBar } from '../components/chrome'
-import { accounts, cardTerms, keyFacts, limits, member, THEMES } from '../lib/mockData'
-import { cashName, money0 } from '../lib/payoff'
+import { accounts, cardTerms, limits, member, THEMES } from '../lib/mockData'
+import { cashName, minimumOnlyPayoff, money0, pa } from '../lib/payoff'
 
 /* ==========================================================================
-   1 · ENTRY — "No-Risk Preview" intro
+   Flow 1 — the application, as six stages (Arta-Card-Ideation.md §2.0).
+
+     Entry  →  1 Get started  →  2 Confirm your details  →  3 Income & employment
+            →  4 Set up your card  →  5 Review, disclosures & sign  →  6 Decision
+
+   Five real decisions and one outcome, grouped by emotional weight rather
+   than by data type.
+   ========================================================================== */
+
+/** Primary-action label while a stage is open for an edit from Review. */
+const saveLabel = (returning: boolean, label: string) => (returning ? 'Save & back to review' : label)
+
+/** The settlement account carries the brand, so its label follows the theme. */
+const accountName = (a: (typeof accounts)[number]) => (a.id === 'cash' ? cashName() : a.name)
+
+const FINISHES: { id: CardFinish; label: string }[] = [
+  { id: 'black', label: 'Black' },
+  { id: 'iridescent', label: 'Iridescent' },
+]
+
+/* ==========================================================================
+   ENTRY — the front door, before any stage
    ========================================================================== */
 
 export function EntryScreen() {
@@ -43,7 +64,12 @@ export function EntryScreen() {
       <StatusBar />
       <div className="flex items-center gap-3 px-6 pb-8 pt-2">
         <div className="grid h-11 w-11 place-items-center rounded-pill bg-white/20 backdrop-blur">
-          <span className="hero-type text-[24px] font-semibold text-white">{t.mark}</span>
+          {/* Arta's own "a" from its wordmark; a partner keeps its own mark. */}
+          {theme === 'arta' ? (
+            <ArtaLetterA size={21} className="text-white" />
+          ) : (
+            <span className="hero-type text-[24px] font-semibold text-white">{t.mark}</span>
+          )}
         </div>
         <p className="text-[15px] font-medium text-white/90">{member.greeting}</p>
         <div className="ml-auto">
@@ -54,8 +80,8 @@ export function EntryScreen() {
               openAgent([
                 msg(
                   'agent',
-                  `Hi ${member.firstName}. Based on what ${t.brandName} already knows about you, you look likely to be eligible — and checking won't touch your credit score. Want me to run it?`,
-                  { actions: [{ label: 'Run the check', onClick: () => go('preview') }] },
+                  `Hi ${member.firstName}. Based on what ${t.brandName} already knows about you, you look likely to be eligible — and checking leaves no enquiry on your Credit Bureau Singapore report. Want me to run it?`,
+                  { actions: [{ label: 'Run the check', onClick: () => go('getStarted') }] },
                 ),
               ])
             }}
@@ -89,10 +115,10 @@ export function EntryScreen() {
         <div className="mb-4 flex items-center gap-2 text-white/85">
           <ShieldCheck size={17} weight="fill" />
           <span className="text-[13px] font-medium">
-            Checking your eligibility will not affect your credit score.
+            Checking your eligibility leaves no enquiry on your CBS credit report.
           </span>
         </div>
-        <PillButton full icon={<PaperPlaneTilt size={18} weight="fill" />} onClick={() => go('preview')}>
+        <PillButton full icon={<PaperPlaneTilt size={18} weight="fill" />} onClick={() => go('getStarted')}>
           Check if I'm eligible
         </PillButton>
         {/* Save & resume — offered only when there is real progress to resume. */}
@@ -110,31 +136,34 @@ export function EntryScreen() {
 }
 
 /* ==========================================================================
-   2 · NO-RISK PREVIEW RESULT
+   STAGE 1 · GET STARTED — pre-qualification result + card choice
+   Both are pre-commitment choices with no data entry, so they share a screen.
    ========================================================================== */
 
-export function PreviewScreen() {
-  const { go, decision } = useApp()
-  const [phase, setPhase] = useState<'checking' | 'done'>('checking')
-  // The declined dev-state also drives the "not eligible right now" preview
-  // outcome, so AC 4.3 is reachable in the demo.
+export function GetStartedScreen() {
+  const { go, advance, decision, returning, cardFinish, setCardFinish } = useApp()
+  // Returning from Review to change the card? The check has already run.
+  const [phase, setPhase] = useState<'checking' | 'done'>(returning ? 'done' : 'checking')
+  // The declined dev-state also drives the "not eligible right now" outcome,
+  // so AC 4.3 is reachable in the demo.
   const eligible = decision !== 'declined'
 
   useEffect(() => {
+    if (phase === 'done') return
     const id = setTimeout(() => setPhase('done'), 1900)
     return () => clearTimeout(id)
-  }, [])
+  }, [phase])
 
   return (
     <StepShell
-      screen="preview"
-      title="No-risk preview"
+      screen="getStarted"
+      title="Get started"
       agentContext="your eligibility preview"
-      agentOpener="This is a soft check — it reads signals we already hold, and no credit bureau is contacted. Ask me anything about how the limit is estimated."
+      agentOpener="This check only reads what Arta already holds — Credit Bureau Singapore is not contacted, so nothing appears on your credit report. Both card finishes carry identical terms, so pick the one you like."
       action={
         phase === 'done' && eligible ? (
-          <PillButton full icon={<ArrowRight size={18} />} onClick={() => go('confirm')}>
-            Continue to apply
+          <PillButton full icon={returning ? undefined : <ArrowRight size={18} />} onClick={() => advance('confirm')}>
+            {saveLabel(returning, 'Continue to apply')}
           </PillButton>
         ) : phase === 'done' ? (
           <PillButton full variant="outline" onClick={() => go('entry')}>
@@ -155,11 +184,11 @@ export function PreviewScreen() {
             </motion.div>
             <h1 className="hero-type text-[30px] text-ink">checking what you'd likely get</h1>
             <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-              Reading your portfolio, cash and payment history. No credit bureau is being contacted.
+              Reading your portfolio, cash and payment history. Credit Bureau Singapore is not being contacted.
             </p>
             <div className="mt-6 flex items-center gap-2 text-positive">
               <ShieldCheck size={16} weight="fill" />
-              <span className="text-[13px] font-medium">No impact to your credit score</span>
+              <span className="text-[13px] font-medium">No enquiry on your CBS credit report</span>
             </div>
           </motion.div>
         ) : eligible ? (
@@ -173,9 +202,13 @@ export function PreviewScreen() {
               history. Your final limit is confirmed when you apply.
             </p>
 
+            <div className="mt-7">
+              <CardChoice value={cardFinish} onChange={setCardFinish} />
+            </div>
+
             <div className="mt-6 space-y-3">
               {[
-                ['Estimated APR', '24.99% variable'],
+                ['Interest rate (EIR)', pa(cardTerms.eir)],
                 ['Annual fee', 'None'],
                 ['Rewards', '2% cash back on everything'],
               ].map(([l, v]) => (
@@ -189,7 +222,7 @@ export function PreviewScreen() {
             <div className="mt-6 flex items-start gap-2.5 rounded-md border border-positive/25 bg-positive/[0.07] p-4">
               <ShieldCheck size={18} weight="fill" className="mt-[1px] shrink-0 text-positive" />
               <p className="text-[13px] leading-relaxed text-ink-muted">
-                This check did not affect your credit score. A full application runs a hard check —
+                This check left no enquiry on your CBS credit report. Submitting an application does —
                 we'll tell you before that happens.
               </p>
             </div>
@@ -219,12 +252,64 @@ export function PreviewScreen() {
   )
 }
 
+/** Card selection — two finishes of the same card, previewed with the real card art. */
+function CardChoice({ value, onChange }: { value: CardFinish; onChange: (f: CardFinish) => void }) {
+  const { theme, kyc } = useApp()
+  return (
+    <div>
+      <Eyebrow className="mb-3">Choose your card</Eyebrow>
+      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Card finish">
+        {FINISHES.map((f) => {
+          const on = f.id === value
+          return (
+            <button
+              key={f.id}
+              role="radio"
+              aria-checked={on}
+              onClick={() => onChange(f.id)}
+              className={`rounded-md border p-2 pb-3 text-left transition-colors ${
+                on ? 'border-white/45 bg-white/[0.07]' : 'border-white/[0.08] bg-card'
+              }`}
+            >
+              {/* The full-size card art (342px wide) scaled to fit the tile. */}
+              <div className="relative h-[95px] w-full overflow-hidden rounded-[9px]">
+                <div className="absolute left-0 top-0 w-[342px] origin-top-left" style={{ transform: 'scale(0.4415)' }}>
+                  <CardArt
+                    theme={theme}
+                    finish={f.id}
+                    sheen={false}
+                    holder={kyc[0].value.toUpperCase()}
+                    last4="4429"
+                  />
+                </div>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between px-1">
+                <span className="text-[14px] font-semibold text-ink">{f.label}</span>
+                <span
+                  className={`grid h-4 w-4 place-items-center rounded-pill border-2 ${
+                    on ? 'border-white' : 'border-white/25'
+                  }`}
+                >
+                  {on && <span className="h-1.5 w-1.5 rounded-pill bg-white" />}
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      <p className="mt-2.5 text-[12px] leading-snug text-ink-faint">
+        Both finishes carry the same rates, fees and rewards — this only changes how it looks.
+      </p>
+    </div>
+  )
+}
+
 /* ==========================================================================
-   3 · ALREADY YOURS — confirm your details
+   STAGE 2 · CONFIRM YOUR DETAILS — Already Yours
    ========================================================================== */
 
 export function ConfirmScreen() {
-  const { go, kyc, editKyc } = useApp()
+  const { advance, returning, kyc, editKyc } = useApp()
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
 
@@ -235,8 +320,8 @@ export function ConfirmScreen() {
       agentContext="confirming your details"
       agentOpener="Everything on this step came from the KYC you completed when you joined Arta. Nothing here is a new question — correct anything that's out of date and we'll carry it forward."
       action={
-        <PillButton full onClick={() => go('income')}>
-          Confirm — all correct
+        <PillButton full onClick={() => advance('income')}>
+          {saveLabel(returning, 'Confirm — all correct')}
         </PillButton>
       }
     >
@@ -249,8 +334,8 @@ export function ConfirmScreen() {
       <div className="mb-5 flex items-center gap-2.5 rounded-md border border-white/10 bg-white/[0.04] px-4 py-3">
         <CheckCircle size={18} weight="fill" className="shrink-0 text-positive" />
         <p className="text-[13px] leading-snug text-ink-muted">
-          <span className="font-semibold text-ink">8 fields pre-filled</span> from your Arta profile —
-          about 4 minutes of typing you don't have to do.
+          <span className="font-semibold text-ink">8 fields pre-filled</span> from your Arta profile,
+          verified with Singpass MyInfo when you joined — nothing to retype.
         </p>
       </div>
 
@@ -315,11 +400,11 @@ export function ConfirmScreen() {
 }
 
 /* ==========================================================================
-   4 · ASK WITH CARE — income & employment
+   STAGE 3 · INCOME & EMPLOYMENT — Ask With Care
    ========================================================================== */
 
 export function IncomeScreen() {
-  const { go, income, setIncome } = useApp()
+  const { advance, returning, income, setIncome } = useApp()
   const [mode, setMode] = useState<'linked' | 'manual'>('linked')
 
   return (
@@ -329,8 +414,8 @@ export function IncomeScreen() {
       agentContext="your income step"
       agentOpener="This is the one step where we ask for something new. It goes to the affordability check our issuing bank has to run — nowhere else. Want me to explain what 'other income' should include?"
       action={
-        <PillButton full onClick={() => go('limit')} disabled={!income.annual}>
-          Continue
+        <PillButton full onClick={() => advance('setup')} disabled={!income.annual}>
+          {saveLabel(returning, 'Continue')}
         </PillButton>
       }
     >
@@ -370,8 +455,8 @@ export function IncomeScreen() {
         <div className="mb-4 flex items-center gap-2.5 rounded-md border border-white/10 bg-white/[0.04] px-4 py-3">
           <CheckCircle size={18} weight="fill" className="shrink-0 text-positive" />
           <p className="text-[13px] leading-snug text-ink-muted">
-            Pre-filled from the payroll deposits into your Arta cash account. Correct it if it's out
-            of date.
+            Pre-filled from your latest IRAS Notice of Assessment, retrieved through Singpass MyInfo.
+            Correct it if it's out of date.
           </p>
         </div>
       )}
@@ -380,15 +465,15 @@ export function IncomeScreen() {
         <Field label="Employer" value={income.employer} onChange={(v) => setIncome({ employer: v })} />
         <Field label="Employment status" value={income.status} onChange={(v) => setIncome({ status: v })} />
         <Field
-          label="Annual income (USD)"
-          prefix="$"
+          label="Annual assessable income (SGD)"
+          prefix="S$"
           value={Number(income.annual || 0).toLocaleString('en-US')}
           onChange={(v) => setIncome({ annual: v.replace(/[^0-9]/g, '') })}
-          hint="Before tax, including bonus and commission."
+          hint="As shown on your latest IRAS Notice of Assessment."
         />
         <Field
-          label="Other annual income (USD)"
-          prefix="$"
+          label="Other annual income (SGD)"
+          prefix="S$"
           value={Number(income.other || 0).toLocaleString('en-US')}
           onChange={(v) => setIncome({ other: v.replace(/[^0-9]/g, '') })}
           hint="Rental, dividends, trust distributions. Optional."
@@ -404,39 +489,53 @@ export function IncomeScreen() {
 }
 
 /* ==========================================================================
-   5 · REQUESTED CREDIT LIMIT
+   STAGE 4 · SET UP YOUR CARD — credit limit + settlement & auto-debit
+   Two fast, low-anxiety choices Arta already has a suggestion for. This is
+   where Plain as Day first appears, collapsed, alongside the limit slider.
    ========================================================================== */
 
-export function LimitScreen() {
-  const { go, requestedLimit, setRequestedLimit } = useApp()
+export function SetupScreen() {
+  const {
+    advance,
+    returning,
+    requestedLimit,
+    setRequestedLimit,
+    settlementAccount,
+    setSettlementAccount,
+    autopay,
+    setAutopay,
+  } = useApp()
   const pct = (requestedLimit - limits.min) / (limits.prequalifiedCeiling - limits.min)
   const atMax = requestedLimit >= limits.prequalifiedCeiling
 
   return (
     <StepShell
-      screen="limit"
-      title="Requested limit"
-      agentContext="your credit limit"
-      agentOpener="A higher limit doesn't cost more — it only costs you if you carry a balance. Most members set it near the ceiling and let autopay clear it monthly."
+      screen="setup"
+      title="Set up your card"
+      agentContext="setting up your card"
+      agentOpener={`A higher limit doesn't cost more — it only costs you if you carry a balance. And paying your full balance by auto-debit means you never pay interest or a late payment fee. At an EIR of ${pa(cardTerms.eir)}, that beats keeping the cash invested.`}
       action={
-        <PillButton full onClick={() => go('settlement')}>
-          Request {money0(requestedLimit)}
+        <PillButton full onClick={() => advance('review')}>
+          {saveLabel(returning, 'Continue')}
         </PillButton>
       }
     >
-      <ScreenTitle sub="You can change this later from your card settings. Asking for less does not improve your chances.">
-        how much
+      <ScreenTitle sub="Two quick choices, both already suggested from what Arta knows. Keep them or change either.">
+        set up
         <br />
-        do you want?
+        your card
       </ScreenTitle>
 
-      <p className="tabular text-[44px] font-semibold leading-none text-ink">
+      {/* --- Credit limit --- */}
+      <Eyebrow>Credit limit</Eyebrow>
+      <p className="tabular mt-2 text-[40px] font-semibold leading-none text-ink">
         {money0(requestedLimit)}
       </p>
 
-      <div className="mt-7">
+      <div className="mt-6">
         <input
           type="range"
+          aria-label="Requested credit limit"
           className="limit-slider"
           min={limits.min}
           max={limits.prequalifiedCeiling}
@@ -461,7 +560,7 @@ export function LimitScreen() {
         </div>
       </div>
 
-      <div className="mt-6 flex items-start gap-2.5 rounded-md border border-white/10 bg-white/[0.04] p-4">
+      <div className="mt-5 flex items-start gap-2.5 rounded-md border border-white/10 bg-white/[0.04] p-4">
         <Sparkle size={17} weight="fill" className="mt-[2px] shrink-0 text-ink" />
         <p className="text-[13px] leading-relaxed text-ink-muted">
           {atMax
@@ -470,42 +569,13 @@ export function LimitScreen() {
         </p>
       </div>
 
-      {/* "Plain as Day" becomes visible here and stays through Review & submit. */}
-      <div className="mt-5">
+      {/* "Plain as Day" first appears here, collapsed, and stays through Stage 5. */}
+      <div className="mt-4">
         <KeyFactsCard />
       </div>
-    </StepShell>
-  )
-}
 
-/* ==========================================================================
-   6 · SETTLEMENT & AUTOPAY
-   ========================================================================== */
-
-/** The settlement account carries the brand, so its label follows the theme. */
-const accountName = (a: (typeof accounts)[number]) => (a.id === 'cash' ? cashName() : a.name)
-
-export function SettlementScreen() {
-  const { go, settlementAccount, setSettlementAccount, autopay, setAutopay } = useApp()
-
-  return (
-    <StepShell
-      screen="settlement"
-      title="Settlement & autopay"
-      agentContext="settlement and autopay"
-      agentOpener="Paying in full by autopay means you never pay interest and never pay a late fee. If your cash is earning more than the APR I'll say so — but at 24.99%, it won't be."
-      action={
-        <PillButton full onClick={() => go('keyfacts')}>
-          Continue
-        </PillButton>
-      }
-    >
-      <ScreenTitle sub="Where your statement is paid from each month.">
-        settlement
-        <br />& autopay
-      </ScreenTitle>
-
-      <Eyebrow className="mb-3">Pay from</Eyebrow>
+      {/* --- Settlement --- */}
+      <Eyebrow className="mb-3 mt-8">Pay your statement from</Eyebrow>
       <div className="space-y-2.5">
         {accounts.map((a) => {
           const on = a.id === settlementAccount
@@ -529,7 +599,7 @@ export function SettlementScreen() {
                   <p className="text-[15px] font-semibold text-ink">{accountName(a)}</p>
                   {a.preferred && (
                     <span className="rounded-pill bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                      Default
+                      Suggested
                     </span>
                   )}
                 </div>
@@ -541,12 +611,13 @@ export function SettlementScreen() {
         })}
       </div>
 
-      <Eyebrow className="mb-3 mt-7">Autopay</Eyebrow>
+      {/* --- Auto-debit --- */}
+      <Eyebrow className="mb-3 mt-7">Auto-debit</Eyebrow>
       <div className="overflow-hidden rounded-md border border-white/[0.08] bg-card">
         {(
           [
-            ['full', 'Statement balance in full', 'Never pay interest. Recommended.'],
-            ['minimum', 'Minimum due only', 'Avoids late fees. Interest applies to the rest.'],
+            ['full', 'Full statement balance', 'No interest charged. Suggested.'],
+            ['minimum', 'Minimum payment only', 'Avoids the late payment fee. Interest applies to the rest.'],
             ['off', 'Off', "You'll pay manually each month."],
           ] as const
         ).map(([id, label, detail], i) => (
@@ -569,99 +640,116 @@ export function SettlementScreen() {
           </button>
         ))}
       </div>
-
-      <div className="mt-5">
-        <KeyFactsCard />
-      </div>
     </StepShell>
   )
 }
 
 /* ==========================================================================
-   7 · PLAIN AS DAY — key facts & disclosures
+   STAGE 5 · REVIEW, DISCLOSURES & SIGN
+   A recap and a signature, not a first read: the key facts have been visible
+   since Stage 4. Edits open the relevant stage and return here on save.
    ========================================================================== */
 
-export function KeyFactsScreen() {
-  const { go } = useApp()
+export function ReviewScreen() {
+  const {
+    go,
+    editFrom,
+    kyc,
+    income,
+    requestedLimit,
+    settlementAccount,
+    autopay,
+    cardFinish,
+    consented,
+    setConsented,
+    creditCheck,
+    setCreditCheck,
+    signature,
+    setSignature,
+  } = useApp()
+  const account = accounts.find((a) => a.id === settlementAccount)!
+  const ready = consented && creditCheck && signature.trim().length > 3
+  // Computed from the card's own EIR and minimum-payment rule, not typed in.
+  const minOnly = minimumOnlyPayoff(5000)
+  const field = (id: string) => kyc.find((f) => f.id === id)?.value ?? ''
+
+  const rows: { label: string; value: string; to: ScreenId }[] = [
+    { label: 'Card', value: FINISHES.find((f) => f.id === cardFinish)!.label, to: 'getStarted' },
+    { label: 'Legal name', value: field('name'), to: 'confirm' },
+    { label: 'Tax residence', value: field('tax'), to: 'confirm' },
+    { label: 'Employer', value: income.employer, to: 'income' },
+    { label: 'Annual income', value: money0(Number(income.annual)), to: 'income' },
+    { label: 'Credit limit', value: money0(requestedLimit), to: 'setup' },
+    { label: 'Pays from', value: accountName(account), to: 'setup' },
+    {
+      label: 'Auto-debit',
+      value: autopay === 'full' ? 'Full balance' : autopay === 'minimum' ? 'Minimum payment' : 'Off',
+      to: 'setup',
+    },
+  ]
+
   return (
     <StepShell
-      screen="keyfacts"
-      title="Key facts"
-      agentContext="the key facts"
-      agentOpener="Ask me about any line on this page and I'll answer it in plain language — including the ones that cost you money."
+      screen="review"
+      title="Review & sign"
+      agentContext="your review and signature"
+      agentOpener="Nothing on this page is new — the key facts are the same ones that came with you from Set up your card. Ask me to restate any line plainly before you sign."
       action={
-        <PillButton full onClick={() => go('declaration')}>
-          I've read the key facts
+        <PillButton full disabled={!ready} onClick={() => go('decision')}>
+          Sign & submit
         </PillButton>
       }
     >
-      <ScreenTitle sub="The whole cost of the card, on one screen, before you sign anything. This card stays with you for the rest of the application.">
-        highlights
-        <br />
-        of charges
+      <ScreenTitle sub="Everything you've told us, the full cost of the card, and your signature. Nothing here is new.">
+        review
+        <br />& sign
       </ScreenTitle>
 
+      {/* --- Recap --- */}
+      <Eyebrow className="mb-3">Your application</Eyebrow>
       <div className="divide-y divide-white/[0.07] overflow-hidden rounded-md border border-white/[0.08] bg-card">
-        {keyFacts.map((f) => (
-          <div key={f.label} className="px-4 py-3.5">
-            <div className="flex items-baseline justify-between gap-4">
-              <p className="text-[14px] text-ink-muted">{f.label}</p>
-              <p className="tabular shrink-0 text-[14px] font-semibold text-ink">{f.value}</p>
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow text-ink-faint">{r.label}</p>
+              <p className="mt-1 break-words text-[15px] text-ink">{r.value}</p>
             </div>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-ink-faint">{f.detail}</p>
+            <button
+              onClick={() => editFrom('review', r.to)}
+              aria-label={`Edit ${r.label.toLowerCase()}`}
+              className="flex shrink-0 items-center gap-1 rounded-pill border border-white/20 px-3 py-1.5 text-[12px] font-medium text-ink-muted"
+            >
+              <PencilSimple size={12} /> Edit
+            </button>
           </div>
         ))}
       </div>
 
-      <div className="mt-5 flex items-start gap-2.5 rounded-md border border-white/10 bg-white/[0.04] p-4">
+      {/* --- Disclosures --- */}
+      <Eyebrow className="mb-3 mt-8">What it costs</Eyebrow>
+      <KeyFactsCard />
+      <div className="mt-3 flex items-start gap-2.5 rounded-md border border-white/10 bg-white/[0.04] p-4">
         <WarningCircle size={18} className="mt-[1px] shrink-0 text-warning" />
         <p className="text-[13px] leading-relaxed text-ink-muted">
-          If you pay only the minimum on a {money0(5000)} balance, it would take roughly 15 years to
-          clear and cost about {money0(6100)} in interest.
+          If you pay only the minimum on a {money0(5000)} balance, it would take about{' '}
+          {Math.round(minOnly.years)} years to clear and cost about {money0(minOnly.interest)} in
+          interest.
         </p>
       </div>
-    </StepShell>
-  )
-}
 
-/* ==========================================================================
-   8 · DECLARATION & CONSENT
-   ========================================================================== */
-
-export function DeclarationScreen() {
-  const { go, consented, setConsented, signature, setSignature } = useApp()
-  const [creditCheck, setCreditCheck] = useState(false)
-  const ready = consented && creditCheck && signature.trim().length > 3
-
-  return (
-    <StepShell
-      screen="declaration"
-      title="Declaration & consent"
-      agentContext="the declaration"
-      agentOpener="The declaration below points at the same key facts you've already seen — there's no new legal text hiding here. Ask me to restate any clause plainly."
-      action={
-        <PillButton full disabled={!ready} onClick={() => go('review')}>
-          Agree & continue
-        </PillButton>
-      }
-    >
-      <ScreenTitle sub="Nothing here is new. Every term below is the one already shown in your key facts.">
-        declaration
-        <br />& consent
-      </ScreenTitle>
-
-      {/* AC 3.3 — the declaration references the SAME key-facts component,
+      {/* --- Declaration & e-sign --- */}
+      <Eyebrow className="mb-3 mt-8">Declaration</Eyebrow>
+      {/* AC 3.3 — the declaration points at the SAME key-facts card above,
           not a second, duplicate wall of disclosure text. */}
-      <KeyFactsCard />
-
-      <div className="mt-5 space-y-4 rounded-md border border-white/[0.08] bg-card p-4">
+      <div className="space-y-4 rounded-md border border-white/[0.08] bg-card p-4">
         <Checkbox checked={consented} onChange={setConsented}>
-          I confirm the information I've given is accurate and complete, and I accept the terms set
-          out in the key facts above.
+          I confirm the information above is accurate and complete, and I accept the terms set out in
+          the key facts.
         </Checkbox>
         <Checkbox checked={creditCheck} onChange={setCreditCheck}>
-          I consent to a credit bureau check. <span className="text-ink">This one does affect your
-          credit file</span> — unlike the eligibility preview you ran earlier.
+          I consent to a credit report enquiry with Credit Bureau Singapore (CBS).{' '}
+          <span className="text-ink">This enquiry will appear on your CBS report</span> — unlike the
+          eligibility preview you ran earlier.
         </Checkbox>
       </div>
 
@@ -684,77 +772,7 @@ export function DeclarationScreen() {
 }
 
 /* ==========================================================================
-   9 · REVIEW & SUBMIT
-   ========================================================================== */
-
-export function ReviewScreen() {
-  const { go, kyc, income, requestedLimit, settlementAccount, autopay } = useApp()
-  const account = accounts.find((a) => a.id === settlementAccount)!
-
-  const rows: { label: string; value: string; to: ScreenId }[] = [
-    { label: 'Legal name', value: kyc[0].value, to: 'confirm' },
-    { label: 'Tax residence', value: kyc[4].value, to: 'confirm' },
-    { label: 'Employer', value: income.employer, to: 'income' },
-    { label: 'Annual income', value: money0(Number(income.annual)), to: 'income' },
-    { label: 'Requested limit', value: money0(requestedLimit), to: 'limit' },
-    { label: 'Settles from', value: accountName(account), to: 'settlement' },
-    {
-      label: 'Autopay',
-      value: autopay === 'full' ? 'Full balance' : autopay === 'minimum' ? 'Minimum due' : 'Off',
-      to: 'settlement',
-    },
-  ]
-
-  return (
-    <StepShell
-      screen="review"
-      title="Review & submit"
-      agentContext="your final review"
-      agentOpener="Once you submit, a hard credit check runs and most Arta members get a decision in under a minute. I'll stay with you through the result either way."
-      action={
-        <PillButton
-          full
-          onClick={() => go('decision')}
-        >
-          Submit application
-        </PillButton>
-      }
-    >
-      <ScreenTitle sub="One last look. Tap any line to go back and change it — you'll return straight here.">
-        ready when
-        <br />
-        you are
-      </ScreenTitle>
-
-      <div className="divide-y divide-white/[0.07] overflow-hidden rounded-md border border-white/[0.08] bg-card">
-        {rows.map((r) => (
-          <button
-            key={r.label}
-            onClick={() => go(r.to)}
-            className="flex w-full items-start gap-3 px-4 py-3.5 text-left"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="eyebrow text-ink-faint">{r.label}</p>
-              <p className="mt-1 break-words text-[15px] text-ink">{r.value}</p>
-            </div>
-            <PencilSimple size={15} className="mt-3 shrink-0 text-ink-faint" />
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-5">
-        <KeyFactsCard />
-      </div>
-
-      <p className="mt-5 text-[12px] leading-relaxed text-ink-faint">
-        Submitting runs a hard credit check with the bureau, which may appear on your credit file.
-      </p>
-    </StepShell>
-  )
-}
-
-/* ==========================================================================
-   10 · DECISION — approved / pending / declined  ("Never Left Hanging")
+   STAGE 6 · DECISION — approved / pending / declined  ("Never Left Hanging")
    ========================================================================== */
 
 export function DecisionScreen() {
@@ -802,7 +820,7 @@ export function DecisionScreen() {
             Never a generic "please wait". */}
         <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">
           {pending
-            ? 'Your application needs a manual review because your income is largely from outside Singapore. A credit analyst has it now.'
+            ? 'Your requested limit is above what we approve instantly, so a credit officer is reviewing it with your CBS credit report.'
             : "We couldn't verify your Singapore address against the document on file — it lists your previous address at 42 Duxton Road."}
         </p>
 
@@ -837,7 +855,7 @@ export function DecisionScreen() {
               msg(
                 'agent',
                 pending
-                  ? "You're in manual review — that's normal for cross-border income and it isn't a bad sign. I can tell you exactly what the analyst is checking, or ping you the moment it clears."
+                  ? "You're in manual review — that's normal for limits at this level and it isn't a bad sign. I can tell you exactly what the analyst is checking, or ping you the moment it clears."
                   : "I can check whether the tenancy agreement in your Arta documents would satisfy this — you uploaded one in June, which is inside the 3-month window for a new one if you have it.",
               ),
             ])
@@ -854,7 +872,7 @@ export function DecisionScreen() {
 /* --- The emotional peak --------------------------------------------------- */
 
 function ApprovedScreen({ limit }: { limit: number }) {
-  const { go, theme, kyc } = useApp()
+  const { go, theme, kyc, cardFinish } = useApp()
   const [revealed, setRevealed] = useState(false)
 
   useEffect(() => {
@@ -875,8 +893,7 @@ function ApprovedScreen({ limit }: { limit: number }) {
           Approved
         </motion.p>
 
-        {/* Card art — black gloss metal with the Arta wordmark and ring
-            pattern in the mark's iridescent tone. Reserved for this moment. */}
+        {/* Card art — the finish chosen at Stage 1, revealed. */}
         <motion.div
           initial={{ rotateX: 62, rotateZ: -18, y: 40, opacity: 0, scale: 0.86 }}
           animate={revealed ? { rotateX: 0, rotateZ: 0, y: 0, opacity: 1, scale: 1 } : {}}
@@ -884,7 +901,7 @@ function ApprovedScreen({ limit }: { limit: number }) {
           style={{ perspective: 900 }}
           className="mt-7 w-full"
         >
-          <CardArt theme={theme} holder={kyc[0].value.toUpperCase()} last4="4429" />
+          <CardArt theme={theme} finish={cardFinish} holder={kyc[0].value.toUpperCase()} last4="4429" />
         </motion.div>
 
         <motion.div
@@ -906,7 +923,7 @@ function ApprovedScreen({ limit }: { limit: number }) {
           transition={{ delay: 0.55 }}
           className="mt-auto w-full space-y-3 pb-2"
         >
-          <StatFooterBar label="APR" value={`${(cardTerms.apr * 100).toFixed(2)}%`} />
+          <StatFooterBar label="Interest rate (EIR)" value={pa(cardTerms.eir)} />
           <StatFooterBar label="Cash back" value="2% on everything" />
         </motion.div>
       </div>

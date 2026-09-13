@@ -8,10 +8,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { THEMES, type Theme } from '../lib/mockData'
+import { activeBrand, THEMES, type Theme } from '../lib/mockData'
 
 /* ============================================================================
-   8. AIMessageBubble / ChatSurface — "Money Mind"
+   8. AIMessageBubble / ChatSurface — Arta AI, in its Card Concierge role
 
    One agent, one surface, one thread. The provider lives above the whole app
    so the conversation persists across application steps and Card Home: the
@@ -96,7 +96,7 @@ export function AgentBadge({
   return (
     <button
       onClick={onClick}
-      aria-label="Talk to us"
+      aria-label={`Ask ${activeBrand.agentName}`}
       className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-pill ${
         variant === 'onGradient' ? 'bg-white/20 backdrop-blur' : 'bg-white/[0.08] border border-white/10'
       }`}
@@ -201,7 +201,9 @@ export function ChatSurface({
                 <p className="text-[15px] font-semibold text-ink">{THEMES[theme].agentName}</p>
                 {/* Context line — proof the agent knows where you are without
                     being told (user story 5, AC 5.1). */}
-                <p className="text-[12px] text-ink-muted">{context}</p>
+                <p className="text-[12px] text-ink-muted">
+                  {THEMES[theme].agentRole} · {context}
+                </p>
               </div>
               <button onClick={close} aria-label="Close" className="p-2 text-ink-muted">
                 <X size={20} />
@@ -233,7 +235,7 @@ export function ChatSurface({
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send(draft)}
-                placeholder="Ask anything about your card"
+                placeholder={`Ask ${THEMES[theme].agentName} anything about your card`}
                 className="h-11 flex-1 rounded-pill border border-white/15 bg-white/[0.04] px-4 text-[14px] text-ink outline-none placeholder:text-ink-faint focus:border-white/30"
               />
               <button

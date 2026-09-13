@@ -30,26 +30,31 @@ SINGLE_FILE=1 npm run build
 The second produces one self-contained `dist/index.html` (~450 KB, no external files beyond the
 Google Fonts stylesheet) — the easiest thing to hand someone or open offline.
 
-## The 14 screens
+## The screens
 
-| # | Screen | Feature it implements |
-|---|--------|----------------------|
-| 1 | Entry | No-Risk Preview intro, save & resume entry point |
-| 2 | Eligibility result | **No-Risk Preview** (incl. the "not eligible yet" state) |
-| 3 | Confirm your details | **Already Yours** |
-| 4 | Income & employment | **Ask With Care** |
-| 5 | Requested limit | Limit slider + **Plain as Day** appears and persists |
-| 6 | Settlement & autopay | Defaults to Arta Cash |
-| 7 | Key facts | **Plain as Day**, in full |
-| 8 | Declaration & consent | References the same key-facts component, not a copy |
-| 9 | Review & submit | Edit affordances back into any step |
-| 10 | Decision | Approved / Pending / Declined — **Never Left Hanging** |
-| 11 | Card Home | Reference screen 2's language, `AllocationBar` as the limit meter |
-| 12 | Smart Payoff | **The deep moment** — live interest-vs-yield arithmetic |
-| 13 | Lifecycle map | **Money Mind** across all five stages |
-| 14 | Brand-in-a-Box | The token swap, side by side |
+The application follows the six stages in `Arta-Card-Ideation.md` §2.0 — five decisions and one
+outcome, grouped by emotional weight rather than by data type.
 
-`Money Mind` (the chat surface) is not a screen — it is mounted once above every screen and holds
+| Stage | Screen | What it does |
+|---|---|---|
+| — | Entry | No-Risk Preview intro; save & resume entry point |
+| 1 | Get started | **No-Risk Preview** result plus card choice (Black or Iridescent, same terms); includes the "not eligible yet" state |
+| 2 | Confirm your details | **Already Yours** |
+| 3 | Income & employment | **Ask With Care** |
+| 4 | Set up your card | Credit limit, settlement and autopay together; **Plain as Day** first appears here |
+| 5 | Review, disclosures & sign | Edit chips, the key-facts schedule, declaration and e-sign as one recap |
+| 6 | Decision | Approved / Pending / Declined — **Never Left Hanging**; approval reveals the chosen card |
+
+After approval:
+
+| Screen | What it does |
+|---|---|
+| Card Home | Reference screen 2's language, `AllocationBar` as the limit meter |
+| Smart Payoff | **The deep moment** — live interest-vs-yield arithmetic |
+| Lifecycle map | **Arta AI** (Card Concierge) across all five lifecycle stages |
+| Brand-in-a-Box | The token swap, side by side |
+
+**Arta AI** (the Card Concierge chat surface) is not a screen — it is mounted once above every screen and holds
 one continuous thread, which is the point of user story 5.
 
 ## What actually works (not just looks clickable)
@@ -66,6 +71,12 @@ one continuous thread, which is the point of user story 5.
   token layer. No component holds a hex value.
 - **Save & resume** — reaching any application step records progress, and the entry screen then
   offers "Continue your application".
+- **Edit from Review returns to Review.** Tapping Edit at Stage 5 opens that stage; saving goes
+  straight back rather than walking forward through every stage again.
+- **The minimum-payment warning is calculated** from the card's EIR and minimum-payment rule.
+- **Singapore terms throughout.** Rates are quoted as EIR p.a., amounts in S$, eligibility and consent
+  refer to Credit Bureau Singapore (CBS), and income pre-fills from the IRAS Notice of Assessment via
+  Singpass MyInfo. Figures are illustrative and typical of the Singapore market, not any bank's actual terms.
 
 ## Demo controls
 

@@ -32,7 +32,7 @@ export function StepShell({
     <div className="flex h-full flex-col bg-bg">
       <ScreenHeader
         onBack={canGoBack ? back : undefined}
-        title={title}
+        title={stepIndex > 0 && title ? `${stepIndex} of ${FLOW1_STEPS.length} · ${title}` : title}
         step={stepIndex > 0 ? stepIndex : undefined}
         totalSteps={stepIndex > 0 ? FLOW1_STEPS.length : undefined}
         right={

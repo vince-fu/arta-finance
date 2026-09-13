@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { THEMES, type Theme } from '../lib/mockData'
+import type { CardFinish } from '../appState'
 
 /* ============================================================================
    CardArt — the physical card, as revealed on approval.
@@ -9,8 +10,9 @@ import { THEMES, type Theme } from '../lib/mockData'
      · the "arta" wordmark, filled with the iridescent tone of the Arta mark
      · the broken concentric rings from the "AI for Wealth" pattern
 
-   Every colour in the rings and the logo fill resolves through --ring-1…7, so
-   the partner theme re-tones the whole card without touching this file.
+   The base resolves through --card-metal, which each theme sets for itself.
+   The rings and logo fill resolve through --ring-1…7, which carry Arta's
+   iridescent signature onto every partner card.
    ========================================================================== */
 
 /** The Arta wordmark, from artafinance.com. viewBox 0 0 398 148. */
@@ -27,6 +29,21 @@ const ARTA_WORDMARK: { d: string; evenOdd?: boolean }[] = [
     d: 'M21 112c0 9.065 6.945 16 18 16 18.13 0 35.082-15.803 35.082-31.5v-6.91L39 97c-13.486 2.653-18 6.377-18 15m26-83c27.858 0 48 17.47 48 44v70a2 2 0 0 1-2 2H76a2 2 0 0 1-2-2v-14c-7.125 10.256-17.217 18-38 18-20.782 0-36-15.428-36-34 0-17.466 10.395-28.357 36-33l37-7v-1c0-14.592-11.64-23-28-23-8.84 0-18.184 2.264-25.599 7.049-.821.53-1.907.444-2.599-.247L6.464 45.464c-.8-.8-.78-2.108.079-2.846C17.269 33.388 31.259 29 47 29',
   },
 ]
+
+/** The wordmark's third path is its leading "a" (x 0–95, y 29–148 in the
+ *  398×148 viewBox). */
+const ARTA_A = ARTA_WORDMARK[2]
+
+/** Arta's own lowercase "a", lifted from the wordmark — for avatar badges. */
+export function ArtaLetterA({ size = 22, className = '' }: { size?: number; className?: string }) {
+  return (
+    // viewBox pads the glyph's bounds equally on each side so it sits
+    // optically centred inside a circle.
+    <svg height={size} viewBox="-2 27 99 123" role="img" aria-label="Arta" className={className}>
+      <path d={ARTA_A.d} fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
+    </svg>
+  )
+}
 
 /**
  * Broken concentric rings. Each dash pattern sums to 100 against
@@ -59,11 +76,18 @@ export function CardArt({
   theme,
   holder,
   last4,
+  finish = 'black',
+  sheen = true,
 }: {
   theme: Theme
   holder: string
   last4: string
+  /** `black` = gloss metal with iridescent rings; `iridescent` = the premium gradient with white rings. */
+  finish?: CardFinish
+  /** The one-off highlight sweep. Off for small previews. */
+  sheen?: boolean
 }) {
+  const black = finish === 'black'
   const uid = useId().replace(/:/g, '')
   const id = (name: string) => `${uid}-${name}`
   const t = THEMES[theme]
@@ -78,7 +102,7 @@ export function CardArt({
           cy={CY}
           r={ring.r}
           fill="none"
-          stroke={`url(#${id(`ring${ring.grad}`)})`}
+          stroke={black ? `url(#${id(`ring${ring.grad}`)})` : 'rgb(255 255 255 / 0.5)'}
           strokeWidth={ring.w}
           strokeLinecap="round"
           pathLength={100}
@@ -93,11 +117,11 @@ export function CardArt({
   return (
     <div
       style={{
-        backgroundImage: 'var(--card-metal)',
+        backgroundImage: black ? 'var(--card-metal)' : 'var(--gradient-premium)',
         boxShadow:
           'inset 0 1px 0 rgb(255 255 255 / 0.2), inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 56px -14px rgb(0 0 0 / 0.8)',
       }}
-      className="card-sheen grain relative aspect-[1.586/1] w-full overflow-hidden rounded-md"
+      className={`${sheen ? 'card-sheen ' : ''}grain relative aspect-[1.586/1] w-full overflow-hidden rounded-md`}
     >
       {/* Ring pattern — a soft glow pass under a crisp pass. */}
       <svg
@@ -155,7 +179,7 @@ export function CardArt({
 
       <div className="relative z-10 flex h-full flex-col p-5">
         <div className="flex items-start">
-          <Wordmark theme={theme} gradientId={id('logo')} />
+          <Wordmark theme={theme} gradientId={id('logo')} solid={!black} />
         </div>
 
         <div className="mt-5 flex items-center gap-3">
@@ -177,7 +201,7 @@ export function CardArt({
 
 /* --- Logo ----------------------------------------------------------------- */
 
-function Wordmark({ theme, gradientId }: { theme: Theme; gradientId: string }) {
+function Wordmark({ theme, gradientId, solid }: { theme: Theme; gradientId: string; solid?: boolean }) {
   const fill = (
     <defs>
       <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
@@ -197,7 +221,7 @@ function Wordmark({ theme, gradientId }: { theme: Theme; gradientId: string }) {
         <text
           x="0"
           y="26"
-          fill={`url(#${gradientId})`}
+          fill={solid ? '#fff' : `url(#${gradientId})`}
           style={{ font: '600 30px Quicksand, ui-rounded, sans-serif', letterSpacing: '-0.02em' }}
         >
           {THEMES[theme].brandName.split(' ')[0].toLowerCase()}
@@ -213,7 +237,7 @@ function Wordmark({ theme, gradientId }: { theme: Theme; gradientId: string }) {
         <path
           key={i}
           d={p.d}
-          fill={`url(#${gradientId})`}
+          fill={solid ? '#fff' : `url(#${gradientId})`}
           fillRule={p.evenOdd ? 'evenodd' : undefined}
           clipRule={p.evenOdd ? 'evenodd' : undefined}
         />

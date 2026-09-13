@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { CaretDown, LockSimple } from '@phosphor-icons/react'
 import { useState, type ReactNode } from 'react'
-import { keyFacts } from '../lib/mockData'
+import { cardTerms, keyFacts } from '../lib/mockData'
+import { pa } from '../lib/payoff'
 
 /* --- 5. DisclosureCard ----------------------------------------------------
    "Plain as Day". Collapsed by default, persistent from the credit-limit step
@@ -65,7 +66,7 @@ export function KeyFactsCard({ defaultOpen = false }: { defaultOpen?: boolean })
   return (
     <DisclosureCard
       eyebrow="Highlights of charges"
-      headline="24.99% APR · no annual fee · no FX fee"
+      headline={`EIR ${pa(cardTerms.eir)} · no annual fee · no FX fee`}
       body="The full rate and fee schedule, one tap away — on every step."
       defaultOpen={defaultOpen}
     >
@@ -118,7 +119,7 @@ export function ReassuranceModule({ what }: { what: string }) {
         </div>
         <div className="flex items-center gap-2 pt-1 text-positive">
           <LockSimple size={15} weight="fill" />
-          <span className="text-[12px] font-medium">256-bit encryption · SOC 2 Type II</span>
+          <span className="text-[12px] font-medium">256-bit encryption · protected under Singapore's PDPA</span>
         </div>
       </div>
     </DisclosureCard>

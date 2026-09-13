@@ -12,14 +12,14 @@ export const cashAccount = accounts[0]
 /** The settlement account's display name under the current theme. */
 export const cashName = () => activeBrand.cashName
 
-/** Interest the card charges on a balance carried for one cycle. */
+/** Interest the card charges on a balance carried for `days`, compounded at the EIR. */
 export function interestOn(balance: number, days = statement.cycleDays) {
-  return balance * cardTerms.apr * (days / 365)
+  return balance * ((1 + cardTerms.eir) ** (days / 365) - 1)
 }
 
-/** Yield given up by moving money out of Arta cash for the same window. */
+/** Interest given up by moving money out of Arta Cash for the same window. */
 export function yieldForgone(amount: number, days = statement.cycleDays) {
-  return amount * cashAccount.yieldApy * (days / 365)
+  return amount * ((1 + cashAccount.yieldPa) ** (days / 365) - 1)
 }
 
 export const minimumDue = Math.max(
@@ -81,8 +81,8 @@ export interface Recommendation {
  * Picks the best action the member can actually afford.
  *
  * The rule is not "always pay in full" — it is "compare the interest avoided
- * against the yield given up, then filter by what's affordable". With a 24.99%
- * APR against a 4.6% yield, paying in full wins; the function still derives it
+ * against the yield given up, then filter by what's affordable". With a 27.8% p.a.
+ * EIR against a 3% p.a. cash rate, paying in full wins; the function still derives it
  * rather than asserting it, so a low-cash member gets a different answer.
  */
 export function recommend(cashBalance = cashAccount.balance): Recommendation {
@@ -92,11 +92,11 @@ export function recommend(cashBalance = cashAccount.balance): Recommendation {
     const interestAvoided = interestOn(statement.balance)
     return {
       id: 'full',
-      headline: `Pay $${fmt(statement.balance)} in full from ${cashName()}`,
+      headline: `Pay S$${fmt(statement.balance)} in full from ${cashName()}`,
       reasoning:
-        `Paying in full avoids $${fmt(interestAvoided)} in interest. The $${fmt(statement.balance)} ` +
-        `leaving your ${cashName()} gives up about $${fmt(full.forgone)} of yield this ` +
-        `cycle — so you finish $${fmt(interestAvoided - full.forgone)} ahead.`,
+        `Paying in full avoids S$${fmt(interestAvoided)} in interest. The S$${fmt(statement.balance)} ` +
+        `leaving your ${cashName()} gives up about S$${fmt(full.forgone)} of interest it would have earned this ` +
+        `cycle — so you finish S$${fmt(interestAvoided - full.forgone)} ahead.`,
       scenario: full,
     }
   }
@@ -107,13 +107,13 @@ export function recommend(cashBalance = cashAccount.balance): Recommendation {
   const partial = scenario(affordable, cashBalance)
   return {
     id: affordable >= statement.balance ? 'full' : 'partial',
-    headline: `Pay $${fmt(affordable)} from ${cashName()}`,
+    headline: `Pay S$${fmt(affordable)} from ${cashName()}`,
     reasoning:
-      `Your ${cashName()} holds $${fmt(cashBalance)}, so paying the full ` +
-      `$${fmt(statement.balance)} isn't possible this cycle. Paying $${fmt(affordable)} ` +
-      `leaves $${fmt(statement.balance - affordable)} revolving at ${(cardTerms.apr * 100).toFixed(2)}% — ` +
-      `about $${fmt(partial.interest)} in interest — which is still ` +
-      `$${fmt(partial.vsMinimum)} better than paying the minimum.`,
+      `Your ${cashName()} holds S$${fmt(cashBalance)}, so paying the full ` +
+      `S$${fmt(statement.balance)} isn't possible this cycle. Paying S$${fmt(affordable)} ` +
+      `leaves S$${fmt(statement.balance - affordable)} revolving at ${pa(cardTerms.eir)} — ` +
+      `about S$${fmt(partial.interest)} in interest — which is still ` +
+      `S$${fmt(partial.vsMinimum)} better than paying the minimum.`,
     scenario: partial,
     constrainedBy: 'available cash',
   }
@@ -124,9 +124,37 @@ export function fmt(n: number, dp = 2) {
 }
 
 export function money(n: number, dp = 2) {
-  return `$${fmt(n, dp)}`
+  return `S$${fmt(n, dp)}`
 }
 
 export function money0(n: number) {
-  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+  return `S$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
+/**
+ * How long a balance takes to clear, and what it costs, paying only the
+ * minimum each month (the greater of 3% or S$50) at the card's EIR. Powers the
+ * key-facts warning, so the figure is calculated rather than typed in.
+ */
+export function minimumOnlyPayoff(balance: number) {
+  const monthlyRate = (1 + cardTerms.eir) ** (1 / 12) - 1
+  let remaining = balance
+  let months = 0
+  let interest = 0
+  while (remaining > 0.005 && months < 1200) {
+    const charge = remaining * monthlyRate
+    const payment = Math.min(
+      Math.max(remaining * cardTerms.minimumDuePct, cardTerms.minimumDueFloor),
+      remaining + charge,
+    )
+    remaining += charge - payment
+    interest += charge
+    months += 1
+  }
+  return { months, years: months / 12, interest }
+}
+
+/** A rate as Singapore cards and deposits quote it, e.g. "27.8% p.a.". */
+export function pa(rate: number) {
+  return `${(rate * 100).toFixed(1)}% p.a.`
 }
